@@ -89,6 +89,8 @@
 
 #include <string.h>
 
+#include <hal.h>
+#include <chprintf.h>
 /*---------------------------------------------------------------------------*/
 /* Variable definitions. */
 
@@ -678,11 +680,61 @@ uip_add_rcv_nxt(u16_t n)
   uip_conn->rcv_nxt[3] = uip_acc32[3];
 }
 /*---------------------------------------------------------------------------*/
+
+static u8_t uip_ipaddr_test_addr(uip_ipaddr_t addr) {
+  //addr1 is the external address, addr2 is the address to match
+  uip_ipaddr_t masked, masked1;
+  u8_t *ip;
+  ip = (u8_t *)addr;
+  
+  //chprintf((BaseSequentialStream*)&SD2, "IP :\t%d.%d.%d.%d\r\n",
+  //	   ip[0], ip[1], ip[2], ip[3]);
+  //DEBUG(("IP: %d.%d.%d.%d\r\n", ip[0], ip[1], ip[2], ip[3]));
+
+  //are the addresses equal?
+  if (uip_ipaddr_cmp(addr, uip_hostaddr)) return 1;
+
+  //broadcast to 255.255.255.255 ?
+  if (uip_ipaddr_cmp(addr, all_ones_addr)) return 1;
+
+  //broadcast to 0.0.0.0 ?
+  if (uip_ipaddr_cmp(addr, all_zeroes_addr)) return 1;
+
+  //check for multicast address for Art-Net and sACN
+  /*
+  if (ip[0] == 224) return 1;
+  if ((ip[0] == 239) && (ip[1] == 255)) return 1;
+  */
+  
+  // Multicast IP range is between 224.0.0.0 and 239.255.255.255
+  if(ip[0] >= 224 && ip[0] <= 239) return 1;
+
+  //Test if the address is a broadcast to a subnet
+  masked[0] = addr[0] & uip_netmask[0];
+  masked[1] = addr[1] & uip_netmask[1];
+
+  masked1[0] = uip_hostaddr[0] & uip_netmask[0];
+  masked1[1] = uip_hostaddr[1] & uip_netmask[1];
+
+  //Check wether the masked IP addresses are correct (same subnet)
+  if (!uip_ipaddr_cmp(masked, masked1)) return 0;
+
+  //same subnet, now test whether the remaining bits are all set to 1
+  masked[0] = addr[0] | uip_netmask[0];
+  masked[1] = addr[1] | uip_netmask[1];
+
+  //If masked is all_ones, then a message was sent to subnet.allones
+  //like 192.168.1.255
+  if (uip_ipaddr_cmp(masked, all_ones_addr)) return 1;
+
+  return 0;
+}
+
 void
 uip_process(u8_t flag)
 {
   register struct uip_conn *uip_connr = uip_conn;
-
+  
 #if UIP_UDP
   if(flag == UIP_UDP_SEND_CONN) {
     goto udp_send;
@@ -909,16 +961,25 @@ uip_process(u8_t flag)
 #if UIP_BROADCAST
     DEBUG_PRINTF("UDP IP checksum 0x%04x\n", uip_ipchksum());
     if(BUF->proto == UIP_PROTO_UDP &&
+       (uip_ipaddr_cmp(BUF->destipaddr, all_ones_addr) ||
+	uip_ipaddr_test_addr(BUF->destipaddr))) {
+	 goto udp_input;
+    }
+    /*
+    if(BUF->proto == UIP_PROTO_UDP &&
        uip_ipaddr_cmp(BUF->destipaddr, all_ones_addr)
-       /*&&
-	 uip_ipchksum() == 0xffff*/) {
+       //&& uip_ipchksum() == 0xffff
+    ) {
+      UIP_LOG("ip broadcast packet, going to udp_input");
       goto udp_input;
     }
+  */
 #endif /* UIP_BROADCAST */
     
     /* Check if the packet is destined for our IP address. */
 #if !UIP_CONF_IPV6
     if(!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
+      UIP_LOG("ip not for us, drop packet");
       UIP_STAT(++uip_stat.ip.drop);
       goto drop;
     }
@@ -949,11 +1010,13 @@ uip_process(u8_t flag)
   if(BUF->proto == UIP_PROTO_TCP) { /* Check for TCP packet. If so,
 				       proceed with TCP input
 				       processing. */
+    UIP_LOG("ip tcp_input");
     goto tcp_input;
   }
 
 #if UIP_UDP
   if(BUF->proto == UIP_PROTO_UDP) {
+    UIP_LOG("ip udp_input");
     goto udp_input;
   }
 #endif /* UIP_UDP */
@@ -1079,6 +1142,7 @@ uip_process(u8_t flag)
 #endif /* !UIP_CONF_IPV6 */
 
 #if UIP_UDP
+  UIP_LOG("udp: Starting UDP process");
   /* UDP input processing. */
  udp_input:
   /* UDP processing is really just a hack. We don't do anything to the
@@ -1109,6 +1173,7 @@ uip_process(u8_t flag)
        connection is bound to a remote port. Finally, if the
        connection is bound to a remote IP address, the source IP
        address of the packet is checked. */
+    /*
     if(uip_udp_conn->lport != 0 &&
        UDPBUF->destport == uip_udp_conn->lport &&
        (uip_udp_conn->rport == 0 ||
@@ -1116,6 +1181,19 @@ uip_process(u8_t flag)
        (uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_zeroes_addr) ||
 	uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_ones_addr) ||
 	uip_ipaddr_cmp(BUF->srcipaddr, uip_udp_conn->ripaddr))) {
+      goto udp_found;
+    }
+    */
+    if (uip_udp_conn->lport != 0 &&
+	            UDPBUF->destport == uip_udp_conn->lport &&
+	(uip_udp_conn->rport == 0 ||
+	 UDPBUF->srcport == uip_udp_conn->rport) &&
+	(uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_zeroes_addr) ||
+	 uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_ones_addr) ||
+	 uip_ipaddr_cmp(BUF->srcipaddr, uip_udp_conn->ripaddr) ||
+	 uip_ipaddr_cmp(BUF->destipaddr, uip_udp_conn->ripaddr) ||
+	 uip_ipaddr_test_addr(BUF->destipaddr)
+	 )) {
       goto udp_found;
     }
   }
@@ -1873,6 +1951,7 @@ uip_process(u8_t flag)
   uip_flags = 0;
   return;
  drop:
+  //UIP_LOG("uip packet drop");
   uip_len = 0;
   uip_flags = 0;
   return;
