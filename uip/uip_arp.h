@@ -60,11 +60,14 @@ extern struct uip_eth_addr uip_ethaddr;
 /**
  * The Ethernet header.
  */
+/*
 struct uip_eth_hdr {
   struct uip_eth_addr dest;
   struct uip_eth_addr src;
   u16_t type;
 };
+
+*/
 
 #define UIP_ETHTYPE_ARP 0x0806
 #define UIP_ETHTYPE_IP  0x0800

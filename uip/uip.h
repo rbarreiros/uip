@@ -1382,6 +1382,34 @@ void uip_process(u8_t flag);
   
 #define UIP_STOPPED      16
 
+/**
+ * Representation of a 48-bit Ethernet address.
+ */
+struct uip_eth_addr {
+  u8_t addr[6];
+};
+
+struct uip_eth_hdr {
+  struct uip_eth_addr dest;
+  struct uip_eth_addr src;
+  u16_t type;
+};
+
+struct ethip_hdr {
+  struct uip_eth_hdr ethhdr;
+  /* IP header. */
+  u8_t vhl,
+    tos,
+    len[2],
+    ipid[2],
+    ipoffset[2],
+    ttl,
+    proto;
+  u16_t ipchksum;
+  u16_t srcipaddr[2],
+    destipaddr[2];
+};
+
 /* The TCP and IP headers. */
 struct uip_tcpip_hdr {
 #if UIP_CONF_IPV6
@@ -1534,14 +1562,6 @@ extern const uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 extern uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 #endif /* UIP_FIXEDADDR */
 
-
-
-/**
- * Representation of a 48-bit Ethernet address.
- */
-struct uip_eth_addr {
-  u8_t addr[6];
-};
 
 /**
  * Calculate the Internet checksum over a buffer.

@@ -63,6 +63,7 @@
 
 #include <string.h>
 
+
 struct arp_hdr {
   struct uip_eth_hdr ethhdr;
   u16_t hwtype;
@@ -75,10 +76,10 @@ struct arp_hdr {
   struct uip_eth_addr dhwaddr;
   u16_t dipaddr[2];
 };
-
+/*
 struct ethip_hdr {
   struct uip_eth_hdr ethhdr;
-  /* IP header. */
+  // IP header. 
   u8_t vhl,
     tos,
     len[2],
@@ -90,6 +91,7 @@ struct ethip_hdr {
   u16_t srcipaddr[2],
     destipaddr[2];
 };
+*/
 
 #define ARP_REQUEST 1
 #define ARP_REPLY   2
