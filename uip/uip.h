@@ -52,6 +52,7 @@
 
 #ifndef __UIP_H__
 #define __UIP_H__
+#pragma once
 
 #include "uipopt.h"
 
@@ -1382,6 +1383,7 @@ void uip_process(u8_t flag);
   
 #define UIP_STOPPED      16
 
+
 /**
  * Representation of a 48-bit Ethernet address.
  */
@@ -1389,11 +1391,16 @@ struct uip_eth_addr {
   u8_t addr[6];
 };
 
+/**
+ * The Ethernet header.
+ */
+
 struct uip_eth_hdr {
   struct uip_eth_addr dest;
   struct uip_eth_addr src;
   u16_t type;
 };
+
 
 struct ethip_hdr {
   struct uip_eth_hdr ethhdr;
@@ -1483,6 +1490,32 @@ struct uip_icmpip_hdr {
 #endif /* !UIP_CONF_IPV6 */
 };
 
+/* The UDP and IP headers. */
+struct uip_igmpip_hdr {
+  /* IP header. */
+  u8_t vhl,
+    tos,
+    len[2],
+    ipid[2],
+    ipoffset[2],
+    ttl,
+    proto;
+  u16_t ipchksum;
+  u16_t srcipaddr[2],
+    destipaddr[2];
+  /* IGMPv3 header */
+  u16_t ra[2];  // router alert options
+  u8_t type,
+    maxresp;
+  u16_t chksum,
+    reserved,
+    num_of_records;
+  u8_t record_type,
+    aux_data_len;
+  u16_t num_src,
+    groupaddr[2];
+};
+
 
 /* The UDP and IP headers. */
 struct uip_udpip_hdr {
@@ -1535,6 +1568,7 @@ struct uip_udpip_hdr {
 
 
 #define UIP_PROTO_ICMP  1
+#define UIP_PROTO_IGMP  2
 #define UIP_PROTO_TCP   6
 #define UIP_PROTO_UDP   17
 #define UIP_PROTO_ICMP6 58
@@ -1547,12 +1581,8 @@ struct uip_udpip_hdr {
 #endif /* UIP_CONF_IPV6 */
 #define UIP_UDPH_LEN    8    /* Size of UDP header */
 #define UIP_TCPH_LEN   20    /* Size of TCP header */
-#define UIP_IPUDPH_LEN (UIP_UDPH_LEN + UIP_IPH_LEN)    /* Size of IP +
-							  UDP
-							  header */
-#define UIP_IPTCPH_LEN (UIP_TCPH_LEN + UIP_IPH_LEN)    /* Size of IP +
-							  TCP
-							  header */
+#define UIP_IPUDPH_LEN (UIP_UDPH_LEN + UIP_IPH_LEN)    /* Size of IP + UDP header */
+#define UIP_IPTCPH_LEN (UIP_TCPH_LEN + UIP_IPH_LEN)    /* Size of IP + TCP header */
 #define UIP_TCPIP_HLEN UIP_IPTCPH_LEN
 
 
@@ -1561,6 +1591,8 @@ extern const uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 #else /* UIP_FIXEDADDR */
 extern uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 #endif /* UIP_FIXEDADDR */
+
+
 
 
 /**

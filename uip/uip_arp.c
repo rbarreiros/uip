@@ -63,35 +63,7 @@
 
 #include <string.h>
 
-
-struct arp_hdr {
-  struct uip_eth_hdr ethhdr;
-  u16_t hwtype;
-  u16_t protocol;
-  u8_t hwlen;
-  u8_t protolen;
-  u16_t opcode;
-  struct uip_eth_addr shwaddr;
-  u16_t sipaddr[2];
-  struct uip_eth_addr dhwaddr;
-  u16_t dipaddr[2];
-};
-/*
-struct ethip_hdr {
-  struct uip_eth_hdr ethhdr;
-  // IP header. 
-  u8_t vhl,
-    tos,
-    len[2],
-    ipid[2],
-    ipoffset[2],
-    ttl,
-    proto;
-  u16_t ipchksum;
-  u16_t srcipaddr[2],
-    destipaddr[2];
-};
-*/
+//#define DEBUG(X)   TRACEL(TRACE_LEVEL_UIP, X)
 
 #define ARP_REQUEST 1
 #define ARP_REPLY   2
@@ -279,7 +251,14 @@ uip_arp_ipin(void)
 void
 uip_arp_arpin(void)
 {
-  
+
+//if(uip_ipaddr_cmp(BUF->dipaddr, uip_hostaddr)) {
+//    uint16_t i ;
+//    DEBUG(("in[%d]: ", uip_len));
+//    for (i=0; i<uip_len; i++) DEBUG(("%02X ", uip_buf[i]));
+//    DEBUG(("\r\n"));
+//}
+
   if(uip_len < sizeof(struct arp_hdr)) {
     uip_len = 0;
     return;
@@ -367,7 +346,8 @@ uip_arp_out(void)
   /* First check if destination is a local broadcast. */
   if(uip_ipaddr_cmp(IPBUF->destipaddr, broadcast_ipaddr)) {
     memcpy(IPBUF->ethhdr.dest.addr, broadcast_ethaddr.addr, 6);
-  } else {
+  }
+  else {
     /* Check if the destination address is on the local network. */
     if(!uip_ipaddr_maskcmp(IPBUF->destipaddr, uip_hostaddr, uip_netmask)) {
       /* Destination address was not on the local network, so we need to
@@ -389,7 +369,6 @@ uip_arp_out(void)
     if(i == UIP_ARPTAB_SIZE) {
       /* The destination address was not in our ARP table, so we
 	 overwrite the IP packet with an ARP request. */
-
       memset(BUF->ethhdr.dest.addr, 0xff, 6);
       memset(BUF->dhwaddr.addr, 0x00, 6);
       memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);

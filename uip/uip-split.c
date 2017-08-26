@@ -40,9 +40,8 @@
 #include "uip-fw.h"
 #include "uip_arch.h"
 
-
-
 #define BUF ((struct uip_tcpip_hdr *)&uip_buf[UIP_LLH_LEN])
+
 
 /*-----------------------------------------------------------------------------*/
 void
